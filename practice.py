@@ -27,7 +27,7 @@ transform = transforms.Compose([
 
 # Load the train and validation datasets
 train_dataset = ImageFolder('/home/anton/repos/lumos-mri/train', transform=transform)
-val_dataset = ImageFolder('/home/anton/repos/lumos-mri/test', transform=transform)
+val_dataset = ImageFolder('/home/anton/repos/lumos-mri/val', transform=transform)
 
 # Define the loss function and optimizer
 criterion = torch.nn.CrossEntropyLoss()
