@@ -16,28 +16,59 @@ model.fc = torch.nn.Linear(model.fc.in_features, num_classes)
 
 from torchvision.datasets import ImageFolder
 from torchvision.transforms import transforms
+from torch.utils.data import DataLoader, WeightedRandomSampler
+import numpy as np
 
-# Define the transformations to apply to the images
-transform = transforms.Compose([
+# Base transformations (applied to all images)
+base_transforms = transforms.Compose([
     transforms.Resize(256),
     transforms.CenterCrop(224),
     transforms.ToTensor(),
     transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
 ])
 
-# Load the train and validation datasets
-train_dataset = ImageFolder('/home/anton/repos/lumos-mri/train', transform=transform)
-val_dataset = ImageFolder('/home/anton/repos/lumos-mri/val', transform=transform)
+# Additional augmentation transformations (applied only to the minority class)
+augmentation_transforms = transforms.Compose([
+    transforms.RandomRotation(10),
+    transforms.RandomHorizontalFlip()
+])
+
+class CustomDataset(ImageFolder):
+    def __init__(self, *args, **kwargs):
+        super(CustomDataset, self).__init__(*args, **kwargs)
+        self.augmentation_transforms = augmentation_transforms
+
+    def __getitem__(self, index):
+        # Apply base transformations (handled by the ImageFolder superclass)
+        image, label = super().__getitem__(index)
+        
+        # Apply additional augmentations only to the minority class
+        if label == 1:  # Assuming '0' is the label for no_disease
+            image = self.augmentation_transforms(image)
+
+        return image, label
+
+# Load datasets
+train_dataset = CustomDataset('/home/anton/repos/lumos-mri/train', transform=base_transforms)
+val_dataset = ImageFolder('/home/anton/repos/lumos-mri/test', transform=base_transforms)
+
+
+# Calculate weights for sampling
+class_counts = np.bincount([label for _, label in train_dataset])
+total_samples = len(train_dataset)
+class_weights = total_samples / class_counts
+sample_weights = [class_weights[label] for _, label in train_dataset]
+
+# Create a WeightedRandomSampler
+sampler = WeightedRandomSampler(weights=sample_weights, num_samples=len(sample_weights), replacement=True)
+
+# Create data loaders
+train_loader = DataLoader(train_dataset, batch_size=32, sampler=sampler)
+val_loader = DataLoader(val_dataset, batch_size=32, shuffle=False)
 
 # Define the loss function and optimizer
 criterion = torch.nn.CrossEntropyLoss()
 optimizer = torch.optim.SGD(model.fc.parameters(), lr=0.001, momentum=0.9)
-
-from torch.utils.data import DataLoader
-
-# Create data loaders for the train and validation datasets
-train_loader = DataLoader(train_dataset, batch_size=32, shuffle=True)
-val_loader = DataLoader(val_dataset, batch_size=32, shuffle=False)
 
 def train(model, train_loader, val_loader, criterion, optimizer, num_epochs):
     # Train the model for the specified number of epochs
