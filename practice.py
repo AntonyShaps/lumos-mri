@@ -120,3 +120,5 @@ for param in model.parameters():
     param.requires_grad = True
 optimizer = torch.optim.SGD(model.parameters(), lr=0.001, momentum=0.9)
 train(model, train_loader, val_loader, criterion, optimizer, num_epochs=10)
+
+torch.save(model,'/home/anton/repos/lumos-mri/model.pkl')
