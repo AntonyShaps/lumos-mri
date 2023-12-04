@@ -23,15 +23,15 @@ def predict(img):
     img = transform(img).unsqueeze(0)  # Add batch dimension
     with torch.no_grad():
         outputs = model(img)
-        _, predicted = torch.max(outputs, 1)
-        pred_label = labels[predicted.item()]
-        return pred_label
+        probabilities = torch.nn.functional.softmax(outputs, dim=1)
+        disease_probability = probabilities[0][labels.index("disease")].item()
+        return disease_probability
 
 # Create Gradio interface
 iface = gr.Interface(
     fn=predict,
     inputs=gr.Image(type="pil"),  # Ensure the input is a PIL image
-    outputs=gr.Label(num_top_classes=2)
+    outputs="number"
 )
 
 iface.launch(share=True)
